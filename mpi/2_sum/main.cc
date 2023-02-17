@@ -12,7 +12,6 @@ int main(int ac, char **av) {
   auto N = atoi(av[1]);
 
   MPI::Init(ac, av);
-  MPI::COMM_WORLD.Bcast(&N, 1, MPI::INT, 0);
 
   double partialSum = 0;
   auto ncpus = MPI::COMM_WORLD.Get_size();
