@@ -54,3 +54,4 @@ dkms.conf
 # Directory w/ build files
 build/
 .cache/
+.vscode/
