@@ -5,27 +5,11 @@
 #include <cstring>
 
 #include <gmp.h>
+#include <gmpxx.h>
 #include <mpi.h>
 
-static inline int calculateMaxN(int N) {
-  auto x_curr = 3.0;
-  auto x_prev = x_curr;
-
-  // x_{n + 1} = x_n - f(x_n)/f'(x_n),
-  // where f(x) = x*ln(x) - x - N*ln(10)
-  do {
-    x_prev = x_curr;
-    x_curr = (x_curr + N * std::log(10)) / std::log(x_curr);
-  } while (std::fabs(x_curr - x_prev) > 1.0);
-
-  return static_cast<int>(std::ceil(x_curr));
-}
-
-static inline void mpz_set_ull(mpz_t n, int_fast64_t ull) {
-  mpz_set_ui(n, static_cast<unsigned>(ull >> 32));
-  mpz_mul_2exp(n, n, 32);
-  mpz_add_ui(n, n, static_cast<unsigned>(ull));
-}
+static int calculateMaxN(int N);
+static void mpz_set_ull(mpz_class &num, int_fast64_t ull);
 
 int main(int argc, char *argv[]) {
   MPI::Init(argc, argv);
@@ -65,39 +49,32 @@ int main(int argc, char *argv[]) {
       end += (maxFact % commsize);
     }
   }
-  mpz_t a_mpz{};
-  mpz_init_set_ui(a_mpz, end - 1);
-
-  mpz_t S_mpz{};
-  mpz_init_set_ui(S_mpz, end);
+  mpz_class a_mpz{static_cast<unsigned>(end - 1)};
+  mpz_class S_mpz{static_cast<unsigned>(end)};
 
   // Main algorithm
-  mpz_t locCurrFact{};
-  mpz_init_set_ui(locCurrFact, 1);
-
-  mpz_t locSum{};
-  mpz_init_set_ui(locSum, 0);
+  mpz_class locCurrFact = 1_mpz;
+  mpz_class locSum = 0_mpz;
 
   for (int i = end - 2; i > start; i--) {
     if (i % (1u << 13) == 0) {
-      mpz_addmul(locSum, locCurrFact, S_mpz);
-      mpz_mul(locCurrFact, locCurrFact, a_mpz);
+      locSum += locCurrFact * S_mpz;
+      locCurrFact *= a_mpz;
 
-      mpz_set_ull(a_mpz, i);
-      mpz_set(S_mpz, a_mpz);
+      mpz_set_ull(a_mpz, i); // mpzzz_ull
+      S_mpz = a_mpz;
     } else {
-      mpz_mul_ui(a_mpz, a_mpz, i);
-      mpz_add(S_mpz, S_mpz, a_mpz);
+      a_mpz *= i;
+      S_mpz += a_mpz;
     }
   }
 
-  mpz_addmul(locSum, locCurrFact, S_mpz);
-  mpz_mul(locCurrFact, locCurrFact, a_mpz);
-  mpz_clears(a_mpz, S_mpz, NULL);
+  locSum += locCurrFact * S_mpz;
+  locCurrFact *= a_mpz;
 
   // For all we calculate locCurrFact = start * (start + 1) * ... * (end - 2) *
   // (end - 1)
-  mpz_mul_ui(locCurrFact, locCurrFact, start);
+  locCurrFact *= start;
 
   if (rank != 0) {
     // For all except first processes we receive largest factorial of PREVIOUS
@@ -117,22 +94,19 @@ int main(int argc, char *argv[]) {
 
     // By these two lines RankFactFromStr is the largest factorial of PREVIOUS
     // process
-    mpz_t rankFactFromStr{};
-    mpz_init_set_str(rankFactFromStr, factStrRecv.data(), 32);
+    mpz_class rankFactFromStr{factStrRecv.data(), 32};
 
     // If THIS process is not last, multiply largest factorial of PREVIOUS
     // process by [start * (start + 1) * ... * (end - 2) * (end - 1)] of THIS
     // process to obtain largest factorial of THIS process
-    mpz_mul(locCurrFact, locCurrFact, rankFactFromStr);
-
-    mpz_clear(rankFactFromStr);
+    locCurrFact *= rankFactFromStr;
   }
 
   // Send NEXT process largest factorial of THIS process
   // Still valid if we have only 1 process
   if (rank < commsize - 1) {
-    auto *factStrSend = mpz_get_str(NULL, 32, locCurrFact);
-    MPI::COMM_WORLD.Isend(factStrSend, strlen(factStrSend) + 1, MPI::CHAR,
+    auto factStrSend = locCurrFact.get_str(32);
+    MPI::COMM_WORLD.Isend(factStrSend.data(), factStrSend.size() + 1, MPI::CHAR,
                           rank + 1, 0);
   }
 
@@ -142,40 +116,32 @@ int main(int argc, char *argv[]) {
   // chosen to be 64 + [ln(10)/ln(2) * N] bits
   mpf_set_default_prec(64 + ceil(3.33 * N));
 
-  mpf_t locSumFloat;
-  mpf_init(locSumFloat);
-  mpf_set_z(locSumFloat, locSum);
+  mpf_class locSumFloat{locSum};
+  mpf_class rankMaxFactFloat{locCurrFact};
 
-  mpf_t rankMaxFactFloat;
-  mpf_init(rankMaxFactFloat);
-  mpf_set_z(rankMaxFactFloat, locCurrFact);
-
-  mpf_div(locSumFloat, locSumFloat, rankMaxFactFloat);
-
-  mpz_clears(locCurrFact, locSum, NULL);
-  mpf_clear(rankMaxFactFloat);
+  locSumFloat = locSumFloat / rankMaxFactFloat;
 
   if (rank != 0) {
-    MPI::COMM_WORLD.Send(&locSumFloat->_mp_prec, 1, MPI::INT, 0, 0);
-    MPI::COMM_WORLD.Send(&locSumFloat->_mp_size, 1, MPI::INT, 0, 0);
-    MPI::COMM_WORLD.Send(&locSumFloat->_mp_exp, 1, MPI::LONG, 0, 0);
+    auto *tmp = locSumFloat.get_mpf_t();
+    MPI::COMM_WORLD.Send(&tmp->_mp_prec, 1, MPI::INT, 0, 0);
+    MPI::COMM_WORLD.Send(&tmp->_mp_size, 1, MPI::INT, 0, 0);
+    MPI::COMM_WORLD.Send(&tmp->_mp_exp, 1, MPI::LONG, 0, 0);
 
-    int tmpLimbsSize = sizeof(locSumFloat->_mp_d[0]) * locSumFloat->_mp_size;
+    int tmpLimbsSize = sizeof(tmp->_mp_d[0]) * tmp->_mp_size;
 
     MPI::COMM_WORLD.Send(&tmpLimbsSize, 1, MPI::INT, 0, 0);
-    MPI::COMM_WORLD.Send(reinterpret_cast<char *>(locSumFloat->_mp_d),
-                         tmpLimbsSize, MPI::CHAR, 0, 0);
+    MPI::COMM_WORLD.Send(reinterpret_cast<char *>(tmp->_mp_d), tmpLimbsSize,
+                         MPI::CHAR, 0, 0);
 
-    mpf_clear(locSumFloat);
   } else {
-    mpf_add_ui(locSumFloat, locSumFloat, 1);
+    locSumFloat += 1;
 
-    mpf_t sum_i;
+    mpf_class sum_i{};
     for (int i = 1; i < commsize; i++) {
-
-      MPI::COMM_WORLD.Recv(&sum_i->_mp_prec, 1, MPI::INT, i, 0);
-      MPI::COMM_WORLD.Recv(&sum_i->_mp_size, 1, MPI::INT, i, 0);
-      MPI::COMM_WORLD.Recv(&sum_i->_mp_exp, 1, MPI::LONG, i, 0);
+      auto *tmp = sum_i.get_mpf_t();
+      MPI::COMM_WORLD.Recv(&tmp->_mp_prec, 1, MPI::INT, i, 0);
+      MPI::COMM_WORLD.Recv(&tmp->_mp_size, 1, MPI::INT, i, 0);
+      MPI::COMM_WORLD.Recv(&tmp->_mp_exp, 1, MPI::LONG, i, 0);
 
       int tmpSize{};
       MPI::COMM_WORLD.Recv(&tmpSize, 1, MPI::INT, i, 0);
@@ -186,24 +152,42 @@ int main(int argc, char *argv[]) {
       MPI::COMM_WORLD.Recv(reinterpret_cast<char *>(tmpLimbs), tmpSize,
                            MPI::CHAR, i, 0);
 
-      sum_i->_mp_d = tmpLimbs;
+      free(tmp->_mp_d);
+      tmp->_mp_d = tmpLimbs;
 
-      mpf_add(locSumFloat, locSumFloat, sum_i);
-      free(tmpLimbs);
+      locSumFloat += sum_i;
     }
 
     auto *formatStr =
         reinterpret_cast<char *>(calloc(14 + strlen(argv[1]), sizeof(char)));
 
-    snprintf(formatStr, 13 + strlen(argv[1]), "%%.%dFf\b \b\n", N + 1);
-    gmp_printf(formatStr, locSumFloat);
+    std::snprintf(formatStr, 13 + strlen(argv[1]), "%%.%dFf\b \b\n", N + 1);
+    gmp_printf(formatStr, locSumFloat.get_mpf_t());
 
     free(formatStr);
-    mpf_clear(locSumFloat);
   }
 
-  // Finalizing MPI
   MPI::Finalize();
-
   return 0;
+}
+
+int calculateMaxN(int N) {
+  auto x_curr = 3.0;
+  auto x_prev = x_curr;
+
+  // x_{n + 1} = x_n - f(x_n)/f'(x_n),
+  // where f(x) = x*ln(x) - x - N*ln(10)
+  do {
+    x_prev = x_curr;
+    x_curr = (x_curr + N * std::log(10)) / std::log(x_curr);
+  } while (std::fabs(x_curr - x_prev) > 1.0);
+
+  return static_cast<int>(std::ceil(x_curr));
+}
+
+void mpz_set_ull(mpz_class &num, int_fast64_t ull) {
+  auto n = num.get_mpz_t();
+  mpz_set_ui(n, static_cast<unsigned>(ull >> 32));
+  mpz_mul_2exp(n, n, 32);
+  mpz_add_ui(n, n, static_cast<unsigned>(ull));
 }
