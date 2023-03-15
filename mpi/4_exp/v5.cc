@@ -4,28 +4,27 @@
 #include <cstdlib>
 #include <cstring>
 
-#include <gmp.h>
 #include <gmpxx.h>
 #include <mpi.h>
 
 static int calculateMaxN(int N);
 static void mpz_set_ull(mpz_class &num, int_fast64_t ull);
 
-int main(int argc, char *argv[]) {
-  MPI::Init(argc, argv);
+int main(int ac, char **av) {
+  MPI::Init(ac, av);
 
   auto commsize = MPI::COMM_WORLD.Get_size();
   auto rank = MPI::COMM_WORLD.Get_rank();
 
-  if (argc < 2) {
+  if (ac < 2) {
     if (rank == 0)
-      std::cout << "Usage: " << argv[0] << " [N]" << std::endl;
+      std::cout << "Usage: " << av[0] << " [N]" << std::endl;
 
     MPI::Finalize();
     return 0;
   }
 
-  const auto N = std::atoi(argv[1]);
+  const auto N = std::atoi(av[1]);
 
   // Calculate to which term we must calculate for given accuracy and send to
   // all processes this information Still valid if we have only 1 process
@@ -159,9 +158,9 @@ int main(int argc, char *argv[]) {
     }
 
     auto *formatStr =
-        reinterpret_cast<char *>(calloc(14 + strlen(argv[1]), sizeof(char)));
+        reinterpret_cast<char *>(calloc(14 + strlen(av[1]), sizeof(char)));
 
-    std::snprintf(formatStr, 13 + strlen(argv[1]), "%%.%dFf\b \b\n", N + 1);
+    std::snprintf(formatStr, 13 + strlen(av[1]), "%%.%dFf\b \b\n", N + 1);
     gmp_printf(formatStr, locSumFloat.get_mpf_t());
 
     free(formatStr);
