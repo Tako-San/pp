@@ -1,5 +1,6 @@
-#include "mpi.h"
-#include <stdio.h>
+#include <iostream>
+
+#include <mpi.h>
 
 int main(int ac, char **av) {
   MPI::Init(ac, av);
