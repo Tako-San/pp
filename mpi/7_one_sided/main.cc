@@ -1,6 +1,6 @@
+#include <iostream>
+
 #include <mpi.h>
-#include <stdio.h>
-#include <stdlib.h>
 
 using T = double;
 
