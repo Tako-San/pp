@@ -30,7 +30,7 @@ int main(int ac, char **av) {
   auto maxRank = commsize - 1;
   int tag = 123;
 
-  // Only root process sets test data
+  /* Only root process sets test data */
   if (rank != 0) {
     runHelperMPI(rank, maxRank, tag, MPI::COMM_WORLD);
     MPI::Finalize();
@@ -42,7 +42,7 @@ int main(int ac, char **av) {
     MPI::COMM_WORLD.Abort(1);
   }
 
-  auto arrSize = atoi(av[1]); // Array size
+  auto arrSize = atoi(av[1]); /* Array size */
 
   std::cout << "Array size = " << arrSize << std::endl;
   std::cout << "Processes = " << commsize << std::endl;
@@ -51,18 +51,18 @@ int main(int ac, char **av) {
   a.resize(arrSize);
   auto tmp{a};
 
-  // Random array initialization
+  /* Random array initialization */
   srand(314159);
   std::generate(a.begin(), a.end(), [arrSize] { return rand() % arrSize; });
 
-  // Sort with root process
+  /* Sort with root process */
   auto start = MPI::Wtime();
   runRootMPI(a, tmp, maxRank, tag, MPI::COMM_WORLD);
   auto end = MPI::Wtime();
 
   std::cout << "Elapsed = " << (end - start) << std::endl;
 
-  // Result check
+  /* Result check */
   if (!std::is_sorted(a.begin(), a.end())) {
     MPI::COMM_WORLD.Abort(1);
   }
@@ -71,7 +71,7 @@ int main(int ac, char **av) {
   return 0;
 }
 
-// Root process code
+/* Root process code */
 void runRootMPI(Vec &a, Vec &tmp, int maxRank, int tag, MPI::Comm &comm) {
   auto rank = comm.Get_rank();
   if (rank != 0) {
@@ -85,10 +85,10 @@ void runRootMPI(Vec &a, Vec &tmp, int maxRank, int tag, MPI::Comm &comm) {
   return;
 }
 
-// Helper process code
+/* Helper process code */
 void runHelperMPI(int rank, int maxRank, int tag, MPI::Comm &comm) {
   auto level = topmostLevel(rank);
-  // probe for a message and determine its size and sender
+  /* probe for a message and determine its size and sender */
   MPI::Status status{};
   comm.Probe(MPI::ANY_SOURCE, tag, status);
   auto size = status.Get_count(MPI::INT);
@@ -100,14 +100,14 @@ void runHelperMPI(int rank, int maxRank, int tag, MPI::Comm &comm) {
 
   comm.Recv(a.data(), size, MPI::INT, parentRank, tag);
   mergeSortParallel(a, tmp, size, level, rank, maxRank, tag, comm);
-  // Send sorted array to parent process
+  /* Send sorted array to parent process */
   comm.Send(a.data(), size, MPI::INT, parentRank, tag);
   return;
 }
 
-// Given a process rank, calculate the top level of the process tree in which
-// the process participates Root assumed to always have rank 0 and to
-// participate at level 0 of the process tree
+/* Given a process rank, calculate the top level of the process tree in which */
+/* the process participates Root assumed to always have rank 0 and to */
+/* participate at level 0 of the process tree */
 int topmostLevel(int rank) {
   int level = 0;
   while (pow(2, level) <= rank)
@@ -115,39 +115,39 @@ int topmostLevel(int rank) {
   return level;
 }
 
-// MPI merge sort
+/* MPI merge sort */
 void mergeSortParallel(Vec &a, Vec &tmp, int size, int level, int rank,
                        int maxRank, int tag, MPI::Comm &comm) {
   auto helperRank = rank + static_cast<int>(pow(2, level));
-  if (helperRank > maxRank) { // no more processes available
+  if (helperRank > maxRank) { /* no more processes available */
     mergeSortSerial(a.begin(), tmp.begin(), size);
     return;
   }
 
-  // Send second half, asynchronous
+  /* Send second half, asynchronous */
   auto request = comm.Isend(a.data() + size / 2, size - size / 2, MPI::INT,
                             helperRank, tag);
-  // Sort first half
+  /* Sort first half */
   mergeSortParallel(a, tmp, size / 2, level + 1, rank, maxRank, tag, comm);
-  // Free the async request (matching receive will complete the transfer).
+  /* Free the async request (matching receive will complete the transfer). */
   request.Free();
 
-  // Receive second half sorted
+  /* Receive second half sorted */
   comm.Recv(a.data() + size / 2, size - size / 2, MPI::INT, helperRank, tag);
 
-  // Merge the two sorted sub-arrays through tmp
+  /* Merge the two sorted sub-arrays through tmp */
   merge(a.begin(), tmp.begin(), size);
 }
 
 void mergeSortSerial(VIter a, VIter tmp, int size) {
-  // Switch to insertion sort for small arrays
+  /* Switch to insertion sort for small arrays */
   if (size <= SMALL) {
     insertionSort(a, size);
     return;
   }
   mergeSortSerial(a, tmp, size / 2);
   mergeSortSerial(a + size / 2, tmp, size - size / 2);
-  // Merge the two sorted subarrays into a tmp array
+  /* Merge the two sorted subarrays into a tmp array */
   merge(a, tmp, size);
 }
 
@@ -175,7 +175,7 @@ void merge(VIter a, VIter tmp, int size) {
     i2++;
     tmpi++;
   }
-  // Copy sorted tmp array into main array, a
+  /* Copy sorted tmp array into main array, a */
   std::copy_n(tmp, size, a);
 }
 
