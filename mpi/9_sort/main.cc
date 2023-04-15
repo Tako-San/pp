@@ -111,7 +111,7 @@ void runHelperMPI(int rank, int maxRank, int tag, MPI::Comm &comm) {
 int topmostLevel(int rank) {
   int level = 0;
   while (pow(2, level) <= rank)
-    level++;
+    ++level;
   return level;
 }
 
@@ -158,29 +158,29 @@ void merge(VIter a, VIter tmp, int size) {
   while (i1 < size / 2 && i2 < size) {
     if (a[i1] < a[i2]) {
       tmp[tmpi] = a[i1];
-      i1++;
+      ++i1;
     } else {
       tmp[tmpi] = a[i2];
-      i2++;
+      ++i2;
     }
-    tmpi++;
+    ++tmpi;
   }
   while (i1 < size / 2) {
     tmp[tmpi] = a[i1];
-    i1++;
-    tmpi++;
+    ++i1;
+    ++tmpi;
   }
   while (i2 < size) {
     tmp[tmpi] = a[i2];
-    i2++;
-    tmpi++;
+    ++i2;
+    ++tmpi;
   }
   /* Copy sorted tmp array into main array, a */
   std::copy_n(tmp, size, a);
 }
 
 void insertionSort(VIter a, int size) {
-  for (int i = 0; i < size; i++) {
+  for (int i = 0; i < size; ++i) {
     int j;
     auto v = a[i];
     for (j = i - 1; j >= 0; j--) {
