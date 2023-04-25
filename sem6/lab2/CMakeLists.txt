@@ -1,0 +1,1 @@
+ADD_STDTHREAD_TARGET(lab2 main.cc)

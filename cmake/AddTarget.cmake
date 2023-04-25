@@ -24,3 +24,8 @@ macro(ADD_MPI_TARGET NAME)
   target_include_directories(${NAME} SYSTEM PRIVATE ${MPI_CXX_INCLUDE_PATH} ${MPI_C_INCLUDE_PATH})
   target_link_libraries(${NAME} PRIVATE ${MPI_CXX_LIBRARIES})
 endmacro()
+
+macro(ADD_STDTHREAD_TARGET NAME)
+  ADD_TARGET(${NAME} ${ARGN})
+  target_link_libraries(${NAME} PRIVATE Threads::Threads)
+endmacro()

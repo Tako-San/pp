@@ -1,4 +1,5 @@
 find_package(MPI REQUIRED)
+find_package(Threads REQUIRED)
 
 SUBDIRLIST(SDIRS ${CMAKE_CURRENT_SOURCE_DIR})
 
