@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.22)
 project(PP)
 
-set(DIRS mpi)
+set(DIRS sem6)
 
 include(cmake/AddTarget.cmake)
 include(cmake/SubDirList.cmake)
