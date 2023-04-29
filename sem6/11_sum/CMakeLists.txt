@@ -1,1 +1,0 @@
-ADD_STDTHREAD_TARGET(11_sum main.cc)

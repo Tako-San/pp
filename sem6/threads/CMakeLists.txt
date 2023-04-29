@@ -1,3 +1,4 @@
+find_package(Threads REQUIRED)
 SUBDIRLIST(SDIRS ${CMAKE_CURRENT_SOURCE_DIR})
 
 foreach(DIR ${SDIRS})
