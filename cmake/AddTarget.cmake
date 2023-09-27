@@ -26,6 +26,12 @@ macro(ADD_MPI_TARGET NAME)
   target_link_libraries(${TNAME} PRIVATE ${MPI_CXX_LIBRARIES})
 endmacro()
 
+macro(ADD_OMP_TARGET NAME)
+  set(TNAME "omp_${NAME}")
+  ADD_TARGET(${TNAME} ${ARGN})
+  target_link_libraries(${TNAME} PRIVATE OpenMP::OpenMP_CXX)
+endmacro()
+
 macro(ADD_STDTHREAD_TARGET NAME)
   set(TNAME "thread_${NAME}")
   ADD_TARGET(${TNAME} ${ARGN})
