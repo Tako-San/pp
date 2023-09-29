@@ -4,6 +4,7 @@
 
 #include <omp.h>
 
+int base = -1;
 int cin = -1;
 int cprivate = -1;
 
@@ -17,7 +18,14 @@ void printThread(int cnt) {
 }
 
 int main() {
-  std::cout << "Copyin:" << std::endl;
+  std::cout << "Base:" << std::endl;
+#pragma omp parallel
+  {
+    base = omp_get_thread_num();
+    printThread(base);
+  }
+
+  std::cout << std::endl << "Copyin:" << std::endl;
 #pragma omp parallel copyin(cin)
   {
     cin = omp_get_thread_num();
@@ -33,6 +41,7 @@ int main() {
   }
 
   std::cout << std::endl;
+  std::cout << "base = " << base << std::endl;
   std::cout << "cin = " << cin << std::endl;
   std::cout << "cprivate = " << cprivate << std::endl;
 }

@@ -1,6 +1,7 @@
 #include <iostream>
-#include <omp.h>
 #include <sstream>
+
+#include <omp.h>
 
 int main() {
   omp_set_nested(1);
@@ -30,3 +31,6 @@ int main() {
     }
   }
 }
+
+// get_active_level
+//  level_uncerstor ... - стандартная ф-ия
