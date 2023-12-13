@@ -191,11 +191,11 @@ int main(int argc, char *argv[]) {
 
   if (commsz == 1)
     doSeq();
-  else if (commsz == 3)
+  // else if (commsz == 3)
     doPar(), doEth();
-  else if (MPI::COMM_WORLD.Get_rank() == 0)
-    std::cerr << "Commsize is not right " << commsz << " (required 3)"
-              << std::endl;
+  // else if (MPI::COMM_WORLD.Get_rank() == 0)
+  //   std::cerr << "Commsize is not right " << commsz << " (required 3)"
+  //             << std::endl;
 
   MPI::Finalize();
 }
